@@ -1,0 +1,25 @@
+{
+  "entities": {
+    "Lead": {
+      "title": "Lead",
+      "description": "A prospective member contact submission.",
+      "type": "object",
+      "properties": {
+        "fullname": { "type": "string", "description": "Full name of the lead" },
+        "whatsapp": { "type": "string", "description": "WhatsApp contact number" },
+        "profession": { "type": "string", "description": "Lead's profession" },
+        "city_state": { "type": "string", "description": "City and State of the lead" },
+        "seeking_reason": { "type": "string", "description": "What the lead is seeking" },
+        "attention_reason": { "type": "string", "description": "Why the page caught their attention" },
+        "createdAt": { "type": "timestamp" }
+      },
+      "required": ["fullname", "whatsapp", "profession", "city_state", "seeking_reason", "attention_reason", "createdAt"]
+    }
+  },
+  "firestore": {
+    "/leads/{leadId}": {
+      "schema": { "$ref": "#/entities/Lead" },
+      "description": "Collection of incoming leads."
+    }
+  }
+}

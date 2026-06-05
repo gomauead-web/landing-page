@@ -1,0 +1,6 @@
+{
+  "name": "GOMAU Landing Page",
+  "description": "Uma landing page completa com formulário de lead utilizando Firestore.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

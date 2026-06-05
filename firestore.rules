@@ -1,0 +1,33 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    match /{document=**} { 
+      allow read, write: if false; 
+    }
+
+    function isValidId(id) {
+      return id is string && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    function incoming() {
+      return request.resource.data;
+    }
+
+    function isValidLead(data) {
+      return data.keys().hasAll(['fullname', 'whatsapp', 'profession', 'city_state', 'seeking_reason', 'attention_reason', 'createdAt'])
+        && data.keys().size() == 7
+        && data.fullname is string && data.fullname.size() > 0 && data.fullname.size() <= 200
+        && data.whatsapp is string && data.whatsapp.size() > 0 && data.whatsapp.size() <= 30
+        && data.profession is string && data.profession.size() > 0 && data.profession.size() <= 150
+        && data.city_state is string && data.city_state.size() > 0 && data.city_state.size() <= 150
+        && data.seeking_reason is string && data.seeking_reason.size() > 0 && data.seeking_reason.size() <= 2000
+        && data.attention_reason is string && data.attention_reason.size() > 0 && data.attention_reason.size() <= 2000
+        && data.createdAt == request.time;
+    }
+
+    match /leads/{leadId} {
+      allow read, update, delete: if false;
+      allow create: if isValidId(leadId) && isValidLead(incoming());
+    }
+  }
+}
