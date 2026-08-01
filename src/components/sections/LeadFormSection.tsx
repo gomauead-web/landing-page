@@ -146,7 +146,7 @@ export const LeadFormSection = () => {
       (e.target as HTMLFormElement).reset();
 
       // Format WhatsApp message
-      const adminPhone = "5521984750005"; // Remove plus, spaces, and dashes
+      const adminPhone = "5531989690748"; // Remove plus, spaces, and dashes
       const message = `*Manifestação de Interesse - GOMAU*
 
 *Nome:* ${data.fullname}
