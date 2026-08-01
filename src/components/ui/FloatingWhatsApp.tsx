@@ -16,11 +16,7 @@ export const FloatingWhatsApp = () => {
     >
       <span className="absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75 animate-ping"></span>
       <MessageCircle className="w-7 h-7 text-white relative z-10" />
-      
-      {/* Tooltip */}
-      <span className="absolute right-16 bg-white text-black text-xs font-medium px-3 py-1.5 rounded shadow-sm opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap pointer-events-none">
-        Fale conosco
-      </span>
     </motion.a>
   );
 };
+
