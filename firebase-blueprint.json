@@ -6,14 +6,15 @@
       "type": "object",
       "properties": {
         "fullname": { "type": "string", "description": "Full name of the lead" },
+        "email": { "type": "string", "description": "Email address of the lead" },
         "whatsapp": { "type": "string", "description": "WhatsApp contact number" },
-        "profession": { "type": "string", "description": "Lead's profession" },
         "city_state": { "type": "string", "description": "City and State of the lead" },
-        "seeking_reason": { "type": "string", "description": "What the lead is seeking" },
-        "attention_reason": { "type": "string", "description": "Why the page caught their attention" },
+        "profession": { "type": "string", "description": "Lead's profession" },
+        "age": { "type": "string", "description": "Lead's age" },
+        "motivation": { "type": "string", "description": "Motivation for joining" },
         "createdAt": { "type": "timestamp" }
       },
-      "required": ["fullname", "whatsapp", "profession", "city_state", "seeking_reason", "attention_reason", "createdAt"]
+      "required": ["fullname", "email", "whatsapp", "city_state", "profession", "age", "motivation", "createdAt"]
     }
   },
   "firestore": {

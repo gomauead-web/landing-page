@@ -1,38 +1,26 @@
 import React, { useState } from 'react';
+import { MessageSquare, Send, CheckCircle2, ArrowRight } from 'lucide-react';
 import { submitLead } from '../../lib/firebase';
 import { FadeIn } from '../animations';
+import { LeadPayload } from '../../types';
+
+const ADMIN_WHATSAPP = "553196672979";
+const ADMIN_WHATSAPP_DISPLAY = "+55 31 9667-2979";
 
 export const LeadFormSection = () => {
   const [status, setStatus] = useState<'idle' | 'loading' | 'success' | 'error'>('idle');
-  const [cepLoading, setCepLoading] = useState(false);
-  const [isBrazil, setIsBrazil] = useState(true);
-  const [cpfVal, setCpfVal] = useState('');
-  const [cepVal, setCepVal] = useState('');
-  const [phoneVal, setPhoneVal] = useState('');
-  
-  const [address, setAddress] = useState({
-    street: '',
-    neighborhood: '',
+  const [directUrl, setDirectUrl] = useState('');
+
+  const [formData, setFormData] = useState({
+    fullname: '',
+    email: '',
+    whatsapp: '',
     city: '',
     state: '',
-    country: 'Brasil'
+    profession: '',
+    age: '',
+    motivation: '',
   });
-
-  const formatCPF = (val: string) => {
-    let v = val.replace(/\D/g, '');
-    if (v.length > 11) v = v.slice(0, 11);
-    v = v.replace(/(\d{3})(\d)/, '$1.$2');
-    v = v.replace(/(\d{3})(\d)/, '$1.$2');
-    v = v.replace(/(\d{3})(\d{1,2})$/, '$1-$2');
-    return v;
-  };
-
-  const formatCEP = (val: string) => {
-    let v = val.replace(/\D/g, '');
-    if (v.length > 8) v = v.slice(0, 8);
-    v = v.replace(/^(\d{5})(\d)/, '$1-$2');
-    return v;
-  };
 
   const formatPhoneBR = (val: string) => {
     let v = val.replace(/\D/g, '');
@@ -49,134 +37,81 @@ export const LeadFormSection = () => {
     return v;
   };
 
-  const handleCpfChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (isBrazil) setCpfVal(formatCPF(e.target.value));
-    else setCpfVal(e.target.value);
-  };
-
-  const handleCepChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (isBrazil) {
-      const formatted = formatCEP(e.target.value);
-      setCepVal(formatted);
-      const plainCep = formatted.replace(/\D/g, '');
-      if (plainCep.length === 8) {
-        fetchAddress(plainCep);
-      } else {
-        setAddress(prev => ({
-          ...prev,
-          street: '',
-          neighborhood: '',
-          city: '',
-          state: ''
-        }));
-      }
-    } else {
-      setCepVal(e.target.value);
-    }
-  };
-
-  const handlePhoneChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (isBrazil) setPhoneVal(formatPhoneBR(e.target.value));
-    else setPhoneVal(e.target.value);
-  };
-
-  const fetchAddress = async (cep: string) => {
-    setCepLoading(true);
-    try {
-      const response = await fetch(`https://viacep.com.br/ws/${cep}/json/`);
-      const data = await response.json();
-      if (!data.erro) {
-        setAddress(prev => ({
-          ...prev,
-          street: data.logradouro || '',
-          neighborhood: data.bairro || '',
-          city: data.localidade || '',
-          state: data.uf || ''
-        }));
-      }
-    } catch (error) {
-      console.error('Error fetching CEP:', error);
-    } finally {
-      setCepLoading(false);
-    }
-  };
-
-  const handleCepBlur = async (e: React.FocusEvent<HTMLInputElement>) => {
-    if (!isBrazil) return;
-    const cep = e.target.value.replace(/\D/g, '');
-    if (cep.length === 8) {
-      fetchAddress(cep);
-    }
-  };
-
-  const handleAddressChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target;
-    setAddress(prev => ({ ...prev, [name]: value }));
+    if (name === 'whatsapp') {
+      setFormData(prev => ({ ...prev, whatsapp: formatPhoneBR(value) }));
+    } else if (name === 'state') {
+      setFormData(prev => ({ ...prev, state: value.toUpperCase() }));
+    } else {
+      setFormData(prev => ({ ...prev, [name]: value }));
+    }
   };
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-    const formData = new FormData(e.currentTarget);
-    
     setStatus('loading');
-    
+
+    const cityState = formData.state.trim() 
+      ? `${formData.city.trim()} / ${formData.state.trim().toUpperCase()}` 
+      : formData.city.trim();
+
+    const payload: Omit<LeadPayload, 'createdAt'> = {
+      fullname: formData.fullname.trim(),
+      email: formData.email.trim(),
+      whatsapp: formData.whatsapp.trim(),
+      city_state: cityState,
+      profession: formData.profession.trim(),
+      age: formData.age.trim(),
+      motivation: formData.motivation.trim(),
+    };
+
+    // Format WhatsApp message with the exact fields requested
+    const message = `*Manifestação de Interesse - GOMAU*
+
+• *Nome:* ${payload.fullname}
+• *E-mail:* ${payload.email}
+• *WhatsApp:* ${payload.whatsapp}
+• *Cidade/Estado:* ${payload.city_state}
+• *Profissão:* ${payload.profession}
+• *Idade:* ${payload.age} anos
+
+*Motivação:*
+${payload.motivation}`;
+
+    const whatsappUrl = `https://wa.me/${ADMIN_WHATSAPP}?text=${encodeURIComponent(message)}`;
+    setDirectUrl(whatsappUrl);
+
     try {
-      const data = {
-        fullname: formData.get('fullname') as string,
-        cpf: formData.get('cpf') as string,
-        whatsapp: formData.get('whatsapp') as string,
-        email: formData.get('email') as string,
-        profession: formData.get('profession') as string,
-        country: isBrazil ? 'Brasil' : formData.get('country') as string,
-        cep: formData.get('cep') as string,
-        street: formData.get('street') as string,
-        number: formData.get('number') as string,
-        complement: formData.get('complement') as string,
-        neighborhood: formData.get('neighborhood') as string,
-        city: formData.get('city') as string,
-        state: formData.get('state') as string,
-        seeking_reason: formData.get('seeking_reason') as string,
-        attention_reason: formData.get('attention_reason') as string,
-      };
-      
-      // Save to Firebase first
-      await submitLead(data);
-      
-      setStatus('success');
-      (e.target as HTMLFormElement).reset();
-
-      // Format WhatsApp message
-      const adminPhone = "5531989690748"; // Remove plus, spaces, and dashes
-      const message = `*Manifestação de Interesse - GOMAU*
-
-*Nome:* ${data.fullname}
-*CPF:* ${data.cpf}
-*WhatsApp:* ${data.whatsapp}
-*E-mail:* ${data.email}
-*Profissão:* ${data.profession}
-
-*Endereço:*
-${data.street}, ${data.number} ${data.complement ? `- ${data.complement}` : ''}
-Bairro: ${data.neighborhood}
-Cidade/Estado: ${data.city}/${data.state}
-CEP/Zip Code: ${data.cep}
-País: ${data.country}
-
-*Buscando:* 
-${data.seeking_reason}
-
-*Atenção:* 
-${data.attention_reason}`;
-
-      const whatsappUrl = `https://wa.me/${adminPhone}?text=${encodeURIComponent(message)}`;
-      
-      // Open WhatsApp in a new tab so the user can send the pre-filled message directly
-      window.open(whatsappUrl, '_blank');
-      
+      // Save lead into Firebase
+      await submitLead(payload);
     } catch (err) {
-      console.error(err);
-      setStatus('error');
+      console.warn('Registro local ou offline no Firebase:', err);
     }
+
+    setStatus('success');
+
+    // Transmit directly to WhatsApp (+55 31 9667-2979)
+    try {
+      window.open(whatsappUrl, '_blank');
+    } catch {
+      // In case browser popup blocker activates
+    }
+  };
+
+  const handleReset = () => {
+    setFormData({
+      fullname: '',
+      email: '',
+      whatsapp: '',
+      city: '',
+      state: '',
+      profession: '',
+      age: '',
+      motivation: '',
+    });
+    setDirectUrl('');
+    setStatus('idle');
   };
 
   return (
@@ -186,11 +121,14 @@ ${data.attention_reason}`;
       <div className="max-w-2xl mx-auto">
         <FadeIn>
           <div className="text-center mb-12">
+            <span className="text-brand-gold text-xs uppercase tracking-[0.25em] font-medium block mb-2">
+              Ingresso e Admissão
+            </span>
             <h2 className="font-serif text-3xl md:text-4xl text-brand-gold font-medium mb-4 filter drop-shadow-[0_0_15px_rgba(255,215,0,0.1)]">
               Aplicação de Ingresso
             </h2>
-            <p className="text-white/60 max-w-xl mx-auto leading-relaxed">
-              O ingresso não é automático ou garantido. Se você compreende nossos princípios e deseja iniciar seu processo, manifeste interesse abaixo. Nossa comissão avaliará seu perfil com total discrição.
+            <p className="text-white/60 max-w-xl mx-auto leading-relaxed text-sm md:text-base">
+              Manifeste seu interesse preenchendo as informações abaixo. Os dados serão formatados e transmitidos diretamente para nossa triagem via WhatsApp ({ADMIN_WHATSAPP_DISPLAY}).
             </p>
           </div>
         </FadeIn>
@@ -201,138 +139,226 @@ ${data.attention_reason}`;
             
             <div className="relative z-10">
               {status === 'success' ? (
-                 <div className="text-center py-16">
-                   <h3 className="text-2xl text-brand-gold font-serif mb-4">Informações recebidas.</h3>
-                   <div className="w-16 h-[1px] bg-brand-gold mx-auto mb-6"></div>
-                   <p className="text-white/70 mb-4">
-                     Nossa equipe de triagem analisará o seu perfil.
-                   </p>
-                   <p className="text-white font-medium">
-                     Uma aba do WhatsApp foi aberta. Envie a mensagem pré-formatada para nossa equipe de triagem iniciar seu atendimento.
-                   </p>
-                   <button onClick={() => setStatus('idle')} className="mt-12 text-brand-gold hover:text-white transition-colors text-sm uppercase tracking-widest font-medium border border-brand-gold/30 hover:border-white px-6 py-2 rounded-sm">Voltar ao início</button>
-                 </div>
+                <div className="text-center py-12 space-y-6">
+                  <div className="w-16 h-16 mx-auto rounded-full bg-brand-gold/10 border border-brand-gold/30 flex items-center justify-center text-brand-gold">
+                    <CheckCircle2 className="w-9 h-9" />
+                  </div>
+
+                  <div>
+                    <h3 className="text-2xl text-brand-gold font-serif mb-2">Informações Formatadas com Sucesso!</h3>
+                    <div className="w-16 h-[1px] bg-brand-gold/40 mx-auto my-4"></div>
+                    <p className="text-white/80 text-sm max-w-md mx-auto leading-relaxed">
+                      Seus dados foram organizados e preparados para envio direto à nossa equipe de triagem no WhatsApp.
+                    </p>
+                  </div>
+
+                  <div className="bg-black/30 border border-brand-gold/20 p-5 rounded-md max-w-md mx-auto space-y-3">
+                    <p className="text-xs uppercase tracking-wider text-brand-gold font-semibold flex items-center justify-center gap-1.5">
+                      <MessageSquare className="w-4 h-4" /> Envio Direto via WhatsApp
+                    </p>
+                    <p className="text-xs text-white/60">
+                      Caso o WhatsApp não tenha aberto automaticamente na sua janela, clique no botão abaixo para concluir o envio:
+                    </p>
+                    <a
+                      href={directUrl}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="inline-flex items-center justify-center gap-2 w-full py-3.5 px-6 bg-green-600 hover:bg-green-500 text-white font-semibold text-sm rounded shadow-lg transition-all"
+                    >
+                      <MessageSquare className="w-4 h-4" />
+                      Transmitir para WhatsApp ({ADMIN_WHATSAPP_DISPLAY})
+                      <ArrowRight className="w-4 h-4 ml-1" />
+                    </a>
+                  </div>
+
+                  <button
+                    onClick={handleReset}
+                    className="text-brand-gold/70 hover:text-white transition-colors text-xs uppercase tracking-widest font-medium pt-4 inline-block"
+                  >
+                    ← Preencher outro formulário
+                  </button>
+                </div>
               ) : (
-                <form onSubmit={handleSubmit} className="space-y-8">
-                  {/* Seletor de Localidade */}
-                  <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4 bg-brand-gold/10 border border-brand-gold/20 p-4 rounded-sm">
-                    <span className="text-sm font-medium text-brand-gold uppercase tracking-widest">Local de Residência:</span>
-                    <div className="flex gap-4">
-                      <label className="flex items-center gap-2 cursor-pointer">
-                        <input type="radio" name="residence" checked={isBrazil} onChange={() => setIsBrazil(true)} className="form-radio text-brand-gold focus:ring-brand-gold bg-black/20 border-white/20" />
-                        <span className="text-white/80 text-sm">Brasil</span>
+                <form onSubmit={handleSubmit} className="space-y-6">
+                  <div className="border-b border-brand-gold/10 pb-2 flex justify-between items-center">
+                    <h3 className="text-brand-gold/90 text-xs font-semibold tracking-widest uppercase">
+                      Dados do Interessado
+                    </h3>
+                    <span className="text-[11px] text-white/40 tracking-wider">
+                      Transmissão direta para {ADMIN_WHATSAPP_DISPLAY}
+                    </span>
+                  </div>
+
+                  <div className="grid md:grid-cols-2 gap-5">
+                    {/* Nome Completo */}
+                    <div className="space-y-1.5 md:col-span-2">
+                      <label htmlFor="fullname" className="text-xs font-medium text-white/70 uppercase tracking-wider">
+                        Nome Completo <span className="text-brand-gold">*</span>
                       </label>
-                      <label className="flex items-center gap-2 cursor-pointer">
-                        <input type="radio" name="residence" checked={!isBrazil} onChange={() => setIsBrazil(false)} className="form-radio text-brand-gold focus:ring-brand-gold bg-black/20 border-white/20" />
-                        <span className="text-white/80 text-sm">Exterior (Outro País)</span>
+                      <input
+                        required
+                        maxLength={200}
+                        id="fullname"
+                        name="fullname"
+                        type="text"
+                        value={formData.fullname}
+                        onChange={handleChange}
+                        className="w-full bg-black/30 border border-white/10 px-4 py-3 text-white placeholder-white/20 focus:border-brand-gold focus:bg-black/50 focus:outline-none transition-all rounded-sm text-sm"
+                        placeholder="Seu nome completo"
+                      />
+                    </div>
+
+                    {/* E-mail */}
+                    <div className="space-y-1.5">
+                      <label htmlFor="email" className="text-xs font-medium text-white/70 uppercase tracking-wider">
+                        E-mail <span className="text-brand-gold">*</span>
                       </label>
+                      <input
+                        required
+                        maxLength={150}
+                        id="email"
+                        name="email"
+                        type="email"
+                        value={formData.email}
+                        onChange={handleChange}
+                        className="w-full bg-black/30 border border-white/10 px-4 py-3 text-white placeholder-white/20 focus:border-brand-gold focus:bg-black/50 focus:outline-none transition-all rounded-sm text-sm"
+                        placeholder="seu@email.com"
+                      />
                     </div>
-                  </div>
 
-                  {/* Dados Pessoais */}
-                  <div className="space-y-6">
-                    <h3 className="text-brand-gold/80 text-sm font-medium tracking-widest uppercase border-b border-brand-gold/10 pb-2">Dados Pessoais</h3>
-                    
-                    <div className="grid md:grid-cols-2 gap-6">
-                      <div className="space-y-2 md:col-span-2">
-                        <label htmlFor="fullname" className="text-xs font-medium text-white/50 uppercase tracking-wider">Nome Completo</label>
-                        <input required maxLength={200} id="fullname" name="fullname" type="text" className="w-full bg-black/20 border border-white/10 px-4 py-3 text-white placeholder-white/20 focus:border-brand-gold focus:bg-black/40 focus:outline-none transition-all rounded-sm" placeholder="Seu nome" />
-                      </div>
-                      <div className="space-y-2">
-                        <label htmlFor="cpf" className="text-xs font-medium text-white/50 uppercase tracking-wider">{isBrazil ? 'CPF' : 'Documento de Identificação'}</label>
-                        <input required maxLength={50} id="cpf" name="cpf" type="text" value={cpfVal} onChange={handleCpfChange} className="w-full bg-black/20 border border-white/10 px-4 py-3 text-white placeholder-white/20 focus:border-brand-gold focus:bg-black/40 focus:outline-none transition-all rounded-sm" placeholder={isBrazil ? "000.000.000-00" : "Passaporte / ID"} />
-                      </div>
-                      <div className="space-y-2">
-                        <label htmlFor="whatsapp" className="text-xs font-medium text-white/50 uppercase tracking-wider">WhatsApp</label>
-                        <input required maxLength={30} id="whatsapp" name="whatsapp" type="tel" value={phoneVal} onChange={handlePhoneChange} className="w-full bg-black/20 border border-white/10 px-4 py-3 text-white placeholder-white/20 focus:border-brand-gold focus:bg-black/40 focus:outline-none transition-all rounded-sm" placeholder={isBrazil ? "(00) 00000-0000" : "+1 234 567 8900"} />
-                      </div>
-                      <div className="space-y-2">
-                        <label htmlFor="email" className="text-xs font-medium text-white/50 uppercase tracking-wider">E-mail</label>
-                        <input required maxLength={150} id="email" name="email" type="email" className="w-full bg-black/20 border border-white/10 px-4 py-3 text-white placeholder-white/20 focus:border-brand-gold focus:bg-black/40 focus:outline-none transition-all rounded-sm" placeholder="seu@email.com" />
-                      </div>
-                      <div className="space-y-2">
-                        <label htmlFor="profession" className="text-xs font-medium text-white/50 uppercase tracking-wider">Profissão</label>
-                        <input required maxLength={150} id="profession" name="profession" type="text" className="w-full bg-black/20 border border-white/10 px-4 py-3 text-white placeholder-white/20 focus:border-brand-gold focus:bg-black/40 focus:outline-none transition-all rounded-sm" placeholder="Ex: Advogado, Empresário..." />
-                      </div>
+                    {/* WhatsApp */}
+                    <div className="space-y-1.5">
+                      <label htmlFor="whatsapp" className="text-xs font-medium text-white/70 uppercase tracking-wider">
+                        WhatsApp (com DDD) <span className="text-brand-gold">*</span>
+                      </label>
+                      <input
+                        required
+                        maxLength={30}
+                        id="whatsapp"
+                        name="whatsapp"
+                        type="tel"
+                        value={formData.whatsapp}
+                        onChange={handleChange}
+                        className="w-full bg-black/30 border border-white/10 px-4 py-3 text-white placeholder-white/20 focus:border-brand-gold focus:bg-black/50 focus:outline-none transition-all rounded-sm text-sm"
+                        placeholder="(00) 00000-0000"
+                      />
                     </div>
-                  </div>
 
-                  {/* Endereço */}
-                  <div className="space-y-6">
-                    <h3 className="text-brand-gold/80 text-sm font-medium tracking-widest uppercase border-b border-brand-gold/10 pb-2">Endereço</h3>
-                    
-                    <div className="grid md:grid-cols-12 gap-6">
-                      {!isBrazil && (
-                        <div className="space-y-2 md:col-span-12">
-                          <label htmlFor="country" className="text-xs font-medium text-white/50 uppercase tracking-wider">País de Residência</label>
-                          <input required maxLength={150} id="country" name="country" type="text" className="w-full bg-black/20 border border-white/10 px-4 py-3 text-white placeholder-white/20 focus:border-brand-gold focus:bg-black/40 focus:outline-none transition-all rounded-sm" placeholder="Ex: Portugal, Estados Unidos" />
-                        </div>
-                      )}
-
-                      <div className="space-y-2 md:col-span-4 relative">
-                        <label htmlFor="cep" className="text-xs font-medium text-white/50 uppercase tracking-wider">{isBrazil ? 'CEP' : 'Zip/Postal Code'} {cepLoading && <span className="text-brand-gold text-[10px] ml-2">(Buscando...)</span>}</label>
-                        <input required maxLength={20} id="cep" name="cep" type="text" value={cepVal} onChange={handleCepChange} onBlur={handleCepBlur} className="w-full bg-black/20 border border-white/10 px-4 py-3 text-white placeholder-white/20 focus:border-brand-gold focus:bg-black/40 focus:outline-none transition-all rounded-sm" placeholder={isBrazil ? "00000-000" : ""} />
-                      </div>
-                      
-                      <div className="space-y-2 md:col-span-8">
-                        <label htmlFor="street" className="text-xs font-medium text-white/50 uppercase tracking-wider">Rua / Logradouro</label>
-                        <input required maxLength={150} id="street" name="street" value={address.street} onChange={handleAddressChange} type="text" className="w-full bg-black/20 border border-white/10 px-4 py-3 text-white placeholder-white/20 focus:border-brand-gold focus:bg-black/40 focus:outline-none transition-all rounded-sm" placeholder="" />
-                      </div>
-
-                      <div className="space-y-2 md:col-span-4">
-                        <label htmlFor="number" className="text-xs font-medium text-white/50 uppercase tracking-wider">Número</label>
-                        <input required maxLength={20} id="number" name="number" type="text" className="w-full bg-black/20 border border-white/10 px-4 py-3 text-white placeholder-white/20 focus:border-brand-gold focus:bg-black/40 focus:outline-none transition-all rounded-sm" placeholder="" />
-                      </div>
-
-                      <div className="space-y-2 md:col-span-8">
-                        <label htmlFor="complement" className="text-xs font-medium text-white/50 uppercase tracking-wider">Complemento (Opcional)</label>
-                        <input maxLength={100} id="complement" name="complement" type="text" className="w-full bg-black/20 border border-white/10 px-4 py-3 text-white placeholder-white/20 focus:border-brand-gold focus:bg-black/40 focus:outline-none transition-all rounded-sm" placeholder="Apto, Bloco..." />
-                      </div>
-
-                      <div className="space-y-2 md:col-span-4">
-                        <label htmlFor="neighborhood" className="text-xs font-medium text-white/50 uppercase tracking-wider">{isBrazil ? 'Bairro' : 'Distrito/Região'}</label>
-                        <input required maxLength={100} id="neighborhood" name="neighborhood" value={address.neighborhood} onChange={handleAddressChange} type="text" className="w-full bg-black/20 border border-white/10 px-4 py-3 text-white placeholder-white/20 focus:border-brand-gold focus:bg-black/40 focus:outline-none transition-all rounded-sm" placeholder="" />
-                      </div>
-
-                      <div className="space-y-2 md:col-span-5">
-                        <label htmlFor="city" className="text-xs font-medium text-white/50 uppercase tracking-wider">Cidade</label>
-                        <input required maxLength={100} id="city" name="city" value={address.city} onChange={handleAddressChange} type="text" className="w-full bg-black/20 border border-white/10 px-4 py-3 text-white placeholder-white/20 focus:border-brand-gold focus:bg-black/40 focus:outline-none transition-all rounded-sm" placeholder="" />
-                      </div>
-                      
-                      <div className="space-y-2 md:col-span-3">
-                        <label htmlFor="state" className="text-xs font-medium text-white/50 uppercase tracking-wider">{isBrazil ? 'Estado (UF)' : 'Estado/Província'}</label>
-                        <input required maxLength={isBrazil ? 2 : 100} id="state" name="state" value={address.state} onChange={handleAddressChange} type="text" className="w-full bg-black/20 border border-white/10 px-4 py-3 text-white placeholder-white/20 focus:border-brand-gold focus:bg-black/40 focus:outline-none transition-all rounded-sm uppercase" placeholder={isBrazil ? "MG" : ""} />
-                      </div>
+                    {/* Cidade */}
+                    <div className="space-y-1.5">
+                      <label htmlFor="city" className="text-xs font-medium text-white/70 uppercase tracking-wider">
+                        Cidade <span className="text-brand-gold">*</span>
+                      </label>
+                      <input
+                        required
+                        maxLength={100}
+                        id="city"
+                        name="city"
+                        type="text"
+                        value={formData.city}
+                        onChange={handleChange}
+                        className="w-full bg-black/30 border border-white/10 px-4 py-3 text-white placeholder-white/20 focus:border-brand-gold focus:bg-black/50 focus:outline-none transition-all rounded-sm text-sm"
+                        placeholder="Ex: Belo Horizonte"
+                      />
                     </div>
-                  </div>
 
-                  {/* Informações Complementares */}
-                  <div className="space-y-6">
-                    <h3 className="text-brand-gold/80 text-sm font-medium tracking-widest uppercase border-b border-brand-gold/10 pb-2">Informações Complementares</h3>
-                    
-                    <div className="space-y-6">
-                      <div className="space-y-2">
-                        <label htmlFor="seeking_reason" className="text-xs font-medium text-white/50 uppercase tracking-wider">O que você busca hoje?</label>
-                        <textarea required maxLength={2000} id="seeking_reason" name="seeking_reason" rows={3} className="w-full bg-black/20 border border-white/10 px-4 py-3 text-white placeholder-white/20 focus:border-brand-gold focus:bg-black/40 focus:outline-none transition-all resize-none rounded-sm" placeholder="Qual o seu principal objetivo em buscar a fraternidade?" />
-                      </div>
+                    {/* Estado / UF */}
+                    <div className="space-y-1.5">
+                      <label htmlFor="state" className="text-xs font-medium text-white/70 uppercase tracking-wider">
+                        Estado (UF) <span className="text-brand-gold">*</span>
+                      </label>
+                      <input
+                        required
+                        maxLength={20}
+                        id="state"
+                        name="state"
+                        type="text"
+                        value={formData.state}
+                        onChange={handleChange}
+                        className="w-full bg-black/30 border border-white/10 px-4 py-3 text-white placeholder-white/20 focus:border-brand-gold focus:bg-black/50 focus:outline-none transition-all rounded-sm text-sm uppercase"
+                        placeholder="Ex: MG"
+                      />
+                    </div>
 
-                      <div className="space-y-2">
-                        <label htmlFor="attention_reason" className="text-xs font-medium text-white/50 uppercase tracking-wider">Por que nossa página chamou sua atenção?</label>
-                        <textarea required maxLength={2000} id="attention_reason" name="attention_reason" rows={3} className="w-full bg-black/20 border border-white/10 px-4 py-3 text-white placeholder-white/20 focus:border-brand-gold focus:bg-black/40 focus:outline-none transition-all resize-none rounded-sm" placeholder="Seja breve e direto." />
-                      </div>
+                    {/* Profissão */}
+                    <div className="space-y-1.5">
+                      <label htmlFor="profession" className="text-xs font-medium text-white/70 uppercase tracking-wider">
+                        Profissão <span className="text-brand-gold">*</span>
+                      </label>
+                      <input
+                        required
+                        maxLength={150}
+                        id="profession"
+                        name="profession"
+                        type="text"
+                        value={formData.profession}
+                        onChange={handleChange}
+                        className="w-full bg-black/30 border border-white/10 px-4 py-3 text-white placeholder-white/20 focus:border-brand-gold focus:bg-black/50 focus:outline-none transition-all rounded-sm text-sm"
+                        placeholder="Ex: Advogado, Empresário..."
+                      />
+                    </div>
+
+                    {/* Idade */}
+                    <div className="space-y-1.5">
+                      <label htmlFor="age" className="text-xs font-medium text-white/70 uppercase tracking-wider">
+                        Idade <span className="text-brand-gold">*</span>
+                      </label>
+                      <input
+                        required
+                        min={18}
+                        max={120}
+                        id="age"
+                        name="age"
+                        type="number"
+                        value={formData.age}
+                        onChange={handleChange}
+                        className="w-full bg-black/30 border border-white/10 px-4 py-3 text-white placeholder-white/20 focus:border-brand-gold focus:bg-black/50 focus:outline-none transition-all rounded-sm text-sm"
+                        placeholder="Ex: 35 (mínimo 18)"
+                      />
+                    </div>
+
+                    {/* Motivação */}
+                    <div className="space-y-1.5 md:col-span-2">
+                      <label htmlFor="motivation" className="text-xs font-medium text-white/70 uppercase tracking-wider">
+                        Motivação <span className="text-brand-gold">*</span>
+                      </label>
+                      <textarea
+                        required
+                        maxLength={2000}
+                        rows={3}
+                        id="motivation"
+                        name="motivation"
+                        value={formData.motivation}
+                        onChange={handleChange}
+                        className="w-full bg-black/30 border border-white/10 px-4 py-3 text-white placeholder-white/20 focus:border-brand-gold focus:bg-black/50 focus:outline-none transition-all rounded-sm text-sm resize-none"
+                        placeholder="Descreva o que motiva seu interesse em ingressar no Grande Oriente Maçônico Universal..."
+                      />
                     </div>
                   </div>
 
                   {status === 'error' && (
-                    <p className="text-brand-red/90 text-sm bg-brand-red/10 border border-brand-red/20 p-4 rounded-sm">Ocorreu um erro ao enviar suas informações. Verifique sua conexão e os dados inseridos e tente novamente.</p>
+                    <p className="text-red-400 text-xs bg-red-950/30 border border-red-500/20 p-3 rounded-sm">
+                      Ocorreu um erro no processamento. Por favor, confira os campos e tente novamente.
+                    </p>
                   )}
 
-                  <div className="pt-6">
-                    <button type="submit" disabled={status === 'loading'} className="w-full py-4 bg-brand-gold text-brand-black uppercase text-sm tracking-widest font-bold hover:bg-white transition-colors disabled:opacity-70 flex justify-center items-center gap-2 rounded-sm shadow-[0_0_15px_rgba(255,215,0,0.15)] hover:shadow-[0_0_20px_rgba(255,255,255,0.3)]">
-                      {status === 'loading' ? 'Transmitindo Aplicação...' : 'Submeter Aplicação'}
+                  <div className="pt-4">
+                    <button
+                      type="submit"
+                      disabled={status === 'loading'}
+                      className="w-full py-4 bg-brand-gold text-brand-black uppercase text-xs sm:text-sm tracking-widest font-bold hover:bg-white transition-all disabled:opacity-70 flex justify-center items-center gap-2 rounded-sm shadow-[0_0_20px_rgba(255,215,0,0.2)] hover:shadow-[0_0_25px_rgba(255,255,255,0.4)] cursor-pointer"
+                    >
+                      {status === 'loading' ? (
+                        'Preparando Transmissão...'
+                      ) : (
+                        <>
+                          <Send className="w-4 h-4" />
+                          Transmitir Aplicação via WhatsApp
+                        </>
+                      )}
                     </button>
-                    <p className="text-[10px] text-center text-white/30 uppercase mt-4 tracking-widest">
-                      Seus dados serão tratados de forma confidencial.
+                    <p className="text-[11px] text-center text-white/40 mt-3 tracking-wider">
+                      Ao clicar em enviar, os dados serão transmitidos diretamente para o WhatsApp oficial da comissão: {ADMIN_WHATSAPP_DISPLAY}.
                     </p>
                   </div>
                 </form>
@@ -344,4 +370,3 @@ ${data.attention_reason}`;
     </section>
   );
 };
-

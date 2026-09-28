@@ -33,8 +33,8 @@ export const Footer = () => {
           <ul className="space-y-4 text-sm text-white/50">
             <li className="flex items-start gap-3">
               <Phone className="w-5 h-5 text-brand-gold/70 shrink-0 mt-0.5" />
-              <a href="https://wa.me/5531989690748" target="_blank" rel="noreferrer" className="hover:text-white transition-colors">
-                +55 (31) 98969-0748<br/>
+              <a href="https://wa.me/553196672979" target="_blank" rel="noreferrer" className="hover:text-white transition-colors">
+                +55 (31) 9667-2979<br/>
                 <span className="text-xs text-white/40">Triagem e Atendimento</span>
               </a>
             </li>
